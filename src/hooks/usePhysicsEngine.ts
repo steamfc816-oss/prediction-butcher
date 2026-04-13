@@ -19,12 +19,14 @@ export interface PhysicsState {
 
 export type CollisionCallback = (type: 'wall' | 'logos' | 'goalA' | 'goalB') => void;
 
-const TARGET_SPEED     = 5.0;
-const MIN_SPEED        = 3.5;
-const MAX_SPEED_NORMAL = 7.5;
-const MAX_SPEED_GUIDED = 16;    // fast enough to reach goal from anywhere in arena
-const STEERING_BASE    = 0.55;  // base steering blend per frame (raised from 0.28)
+const TARGET_SPEED     = 9.0;   // raised for visibility
+const MIN_SPEED        = 7.5;   // never slow down
+const MAX_SPEED_NORMAL = 14.0;  // faster freewheeling
+const MAX_SPEED_GUIDED = 18;    // fast enough to reach goal from anywhere in arena
+const STEERING_BASE    = 0.55;  // base steering blend per frame
 const STEERING_CLOSE   = 0.90;  // aggressive near-goal steering
+const ATTRACTION       = 0.07;  // mutual pull toward each other (more collisions)
+const COLLISION_BOOST  = 1.35;  // velocity mult on ball-ball impact
 
 export function usePhysicsEngine(config: PhysicsConfig, onCollision: CollisionCallback) {
   const engineRef      = useRef<Matter.Engine | null>(null);
@@ -108,13 +110,13 @@ export function usePhysicsEngine(config: PhysicsConfig, onCollision: CollisionCa
       config.arenaCenterX + (Math.random() - 0.5) * 40,
       config.arenaCenterY + 30 + (Math.random() - 0.5) * 20,
       config.logoRadius,
-      { restitution: 0.92, friction: 0.008, frictionAir: 0.004, density: 0.045, label: 'logoA' }
+      { restitution: 0.99, friction: 0.0, frictionAir: 0.002, density: 0.045, label: 'logoA' }
     );
     const logoB = Matter.Bodies.circle(
       config.arenaCenterX + (Math.random() - 0.5) * 40,
       config.arenaCenterY - 30 + (Math.random() - 0.5) * 20,
       config.logoRadius,
-      { restitution: 0.92, friction: 0.008, frictionAir: 0.004, density: 0.045, label: 'logoB' }
+      { restitution: 0.99, friction: 0.0, frictionAir: 0.002, density: 0.045, label: 'logoB' }
     );
 
     // Kick-off: launch sideways to prevent immediate goals
@@ -135,10 +137,22 @@ export function usePhysicsEngine(config: PhysicsConfig, onCollision: CollisionCa
     Matter.Events.on(engine, 'collisionStart', (event) => {
       for (const pair of event.pairs) {
         const labels = [pair.bodyA.label, pair.bodyB.label];
-        if (labels.includes('goalA')) onCollision('goalA');
-        else if (labels.includes('goalB')) onCollision('goalB');
-        else if (labels.includes('logoA') && labels.includes('logoB')) onCollision('logos');
-        else if (labels.includes('wall') || labels.includes('goalWall')) onCollision('wall');
+        if (labels.includes('goalA')) {
+          onCollision('goalA');
+        } else if (labels.includes('goalB')) {
+          onCollision('goalB');
+        } else if (labels.includes('logoA') && labels.includes('logoB')) {
+          // Boost both balls on collision for dramatic effect
+          [pair.bodyA, pair.bodyB].forEach(b => {
+            const spd = Math.sqrt(b.velocity.x ** 2 + b.velocity.y ** 2) || 1;
+            const capped = Math.min(spd * COLLISION_BOOST, MAX_SPEED_NORMAL);
+            const scale = capped / spd;
+            Matter.Body.setVelocity(b, { x: b.velocity.x * scale, y: b.velocity.y * scale });
+          });
+          onCollision('logos');
+        } else if (labels.includes('wall') || labels.includes('goalWall')) {
+          onCollision('wall');
+        }
       }
     });
 
@@ -243,12 +257,33 @@ export function usePhysicsEngine(config: PhysicsConfig, onCollision: CollisionCa
         Matter.Body.setVelocity(body, { x: newVx, y: newVy });
 
       } else {
-        // ── FREE MODE: organic movement ────────────────────────────
+        // ── FREE MODE: organic movement + mutual attraction ────────
         if (rescueIfStuck(body)) return;
 
+        // Mutual attraction: pull toward the other ball when far
+        const other = team === 'A' ? logoBRef.current : logoARef.current;
+        let nx = body.velocity.x;
+        let ny = body.velocity.y;
+
+        if (other) {
+          const odx = other.position.x - body.position.x;
+          const ody = other.position.y - body.position.y;
+          const odist = Math.sqrt(odx * odx + ody * ody) || 1;
+          // Attract when far, slight repulsion when very close (avoid clumping)
+          if (odist > 55) {
+            nx += (odx / odist) * ATTRACTION * MAX_SPEED_NORMAL;
+            ny += (ody / odist) * ATTRACTION * MAX_SPEED_NORMAL;
+          } else if (odist < 30) {
+            nx -= (odx / odist) * ATTRACTION * 0.5 * MAX_SPEED_NORMAL;
+            ny -= (ody / odist) * ATTRACTION * 0.5 * MAX_SPEED_NORMAL;
+          }
+        }
+
+        // Organic wobble
         const wobble = Math.sin(fc * 0.04 + (team === 'A' ? 0 : Math.PI)) * 0.04;
-        const nx = body.velocity.x + body.velocity.y * wobble;
-        const ny = body.velocity.y - body.velocity.x * wobble;
+        nx = nx + ny * wobble;
+        ny = ny - nx * wobble;
+
         const s2 = Math.sqrt(nx * nx + ny * ny);
 
         if (s2 < MIN_SPEED) {
