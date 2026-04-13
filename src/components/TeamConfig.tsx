@@ -1,17 +1,24 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   label: string;
   name: string;
   color: string;
+  scriptedGoals: string;
   onNameChange: (name: string) => void;
   onColorChange: (color: string) => void;
-  onImageChange: (img: HTMLImageElement) => void;
+  onImageChange: (image: HTMLImageElement | null) => void;
+  onScriptedGoalsChange: (minutes: string) => void;
 }
 
-const TeamConfig: React.FC<Props> = ({ label, name, color, onNameChange, onColorChange, onImageChange }) => {
+const TeamConfig: React.FC<Props> = ({ 
+  label, name, color, scriptedGoals, onNameChange, onColorChange, onImageChange, onScriptedGoalsChange 
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -36,23 +43,42 @@ const TeamConfig: React.FC<Props> = ({ label, name, color, onNameChange, onColor
           className="h-8 text-sm"
         />
       </div>
-      <div className="flex gap-2 items-end">
-        <div className="flex-1 space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Écusson</Label>
-          <Input
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Écusson</Label>
+        <div className="flex gap-2 items-center">
+          <input
             type="file"
+            ref={fileInputRef}
             accept="image/*"
             onChange={handleFile}
-            className="h-8 text-xs"
+            className="hidden"
           />
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-8 text-xs"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Choisir image
+          </Button>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Couleur</Label>
+            <input
+              type="color"
+              value={color}
+              onChange={(e) => onColorChange(e.target.value)}
+              className="w-6 h-6 p-0 border-0 rounded cursor-pointer"
+            />
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Couleur</Label>
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => onColorChange(e.target.value)}
-            className="w-8 h-8 rounded cursor-pointer border-0 p-0 bg-transparent"
+
+        <div className="space-y-1.5 mt-2">
+          <Label className="text-xs text-muted-foreground">Buts (Minutes)</Label>
+          <Input
+            value={scriptedGoals}
+            onChange={(e) => onScriptedGoalsChange(e.target.value)}
+            placeholder="ex: 12, 45, 89"
+            className="h-8 text-sm placeholder:text-muted-foreground/50"
           />
         </div>
       </div>
