@@ -71,7 +71,7 @@ export function useVideoExport() {
           await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-preset', 'fast', '-crf', '23', '-c:a', 'aac', '-movflags', '+faststart', 'output.mp4']);
           
           const data = await ffmpeg.readFile('output.mp4');
-          const mp4Blob = new Blob([data], { type: 'video/mp4' });
+          const mp4Blob = new Blob([new Uint8Array(data as Uint8Array)], { type: 'video/mp4' });
           const url = URL.createObjectURL(mp4Blob);
           
           setProgress(100);
