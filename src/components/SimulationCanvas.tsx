@@ -80,6 +80,34 @@ const SimulationCanvas = forwardRef<SimulationCanvasHandle, Props>((
     goalNetA: GOAL_TOP, goalNetB: GOAL_BOTTOM, logoRadius: LOGO_R,
   };
 
+  // ── Handle High-DPI (Retina) scaling ───────────────────────
+  const setupCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    const dpr = window.devicePixelRatio || 1;
+    // Set display size
+    canvas.style.width = `${CANVAS_W}px`;
+    canvas.style.height = `${CANVAS_H}px`;
+    
+    // Set actual buffer size scaled by DPR
+    if (canvas.width !== CANVAS_W * dpr || canvas.height !== CANVAS_H * dpr) {
+      canvas.width = CANVAS_W * dpr;
+      canvas.height = CANVAS_H * dpr;
+      ctx.scale(dpr, dpr);
+    }
+    
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    return ctx;
+  }, []);
+
+  useEffect(() => {
+    setupCanvas();
+  }, [setupCanvas]);
+
   const collisionHandler = useCallback((type: string) => {
     if (type === 'wall' || type === 'logos') { onBounce?.(); }
     if (goalCooldownRef.current > 0) return;
@@ -163,9 +191,7 @@ const SimulationCanvas = forwardRef<SimulationCanvasHandle, Props>((
     });
 
     const loop = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
+      const ctx = setupCanvas();
       if (!ctx) return;
 
       // ── INTRO PHASE ──────────────────────────────────────────
@@ -291,9 +317,7 @@ const SimulationCanvas = forwardRef<SimulationCanvasHandle, Props>((
   // ── Static preview (not running) ──────────────────────────
   useEffect(() => {
     if (running) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = setupCanvas();
     if (!ctx) return;
 
     drawBackground(ctx, CANVAS_W, CANVAS_H);
@@ -317,9 +341,7 @@ const SimulationCanvas = forwardRef<SimulationCanvasHandle, Props>((
   return (
     <canvas
       ref={canvasRef}
-      width={CANVAS_W}
-      height={CANVAS_H}
-      className="rounded-lg border border-border w-full max-w-[360px] mx-auto"
+      className="rounded-lg border border-border w-full max-w-[360px] mx-auto shadow-2xl"
       style={{ aspectRatio: '9/16' }}
     />
   );
