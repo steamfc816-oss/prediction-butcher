@@ -373,28 +373,41 @@ export function drawScoreOverlay(ctx: CanvasRenderingContext2D, w: number, state
   ctx.textAlign = 'center';
   ctx.fillText(state.competition.toUpperCase(), w / 2, 6);
 
-  // Minute top-right
-  ctx.textAlign = 'right';
-  ctx.fillStyle = state.isFinished ? '#dc2626' : 'rgba(255,255,255,0.5)';
-  ctx.fillText(state.isFinished ? 'FT' : `${Math.floor(state.matchMinute)}'`, w - 10, 6);
-
+  // Minute top-right removed, it will be placed between the score
+  
   const cx = w / 2;
 
   // Team A (logo only, no name)
-  drawMiniLogo(ctx, cx - 95, 52, 24, state.teamAImage, state.teamAColor, state.teamAName);
+  drawMiniLogo(ctx, cx - 110, 52, 24, state.teamAImage, state.teamAColor, state.teamAName);
 
   // Team B (logo only, no name)
-  drawMiniLogo(ctx, cx + 95, 52, 24, state.teamBImage, state.teamBColor, state.teamBName);
+  drawMiniLogo(ctx, cx + 110, 52, 24, state.teamBImage, state.teamBColor, state.teamBName);
 
-  // Score badge center
-  const scoreText = `${state.scoreA}  –  ${state.scoreB}`;
-  ctx.textAlign = 'center';
+  // Score badge center with Time between them
   ctx.textBaseline = 'middle';
-  ctx.font = 'bold 38px Impact, sans-serif';
   ctx.shadowColor = '#dc2626';
+  
+  // Score A
+  ctx.textAlign = 'right';
+  ctx.font = 'bold 40px Impact, sans-serif';
   ctx.shadowBlur = 20;
   ctx.fillStyle = '#ffffff';
-  ctx.fillText(scoreText, cx, 50);
+  ctx.fillText(state.scoreA.toString(), cx - 35, 50);
+
+  // Match minute (in white)
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 15px Arial, sans-serif';
+  ctx.shadowBlur = 5;
+  ctx.fillStyle = '#ffffff';
+  const timeText = state.isFinished ? 'FT' : `${Math.floor(state.matchMinute)}'`;
+  ctx.fillText(timeText, cx, 50);
+
+  // Score B
+  ctx.textAlign = 'left';
+  ctx.font = 'bold 40px Impact, sans-serif';
+  ctx.shadowBlur = 20;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(state.scoreB.toString(), cx + 35, 50);
 
   // Time bar under score
   const totalDuration = 90;
